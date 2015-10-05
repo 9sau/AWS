@@ -153,11 +153,11 @@ public class AwsSample {
 			System.out.println("#11 Security Group ");
 
 			try {
-				CreateSecurityGroupRequest securityGroupRequest = new CreateSecurityGroupRequest(
-						"SaurabhCC", "Getting Started Security Group");
+				CreateSecurityGroupRequest securityGroupRequest = new CreateSecurityGroupRequest("SaurabhCC",
+						"Getting Started Security Group");
 				CreateSecurityGroupResult csgresult = ec2.createSecurityGroup(securityGroupRequest);
 				System.out.println(String.format("Security group created: [%s]", csgresult.getGroupId()));
-		 	} catch (AmazonServiceException ase) {
+			} catch (AmazonServiceException ase) {
 				// Likely this means that the group is already created, so
 				// ignore.
 				System.out.println(ase.getMessage());
@@ -172,7 +172,7 @@ public class AwsSample {
 				InetAddress addr = InetAddress.getLocalHost();
 
 				// Get IP Address
-				ipAddr = addr.getHostAddress() + "/32";
+				// ipAddr = addr.getHostAddress() + "/32";
 			} catch (UnknownHostException e) {
 			}
 
@@ -199,21 +199,13 @@ public class AwsSample {
 			}
 
 			CreateKeyPairRequest createKeyPairRequest = new CreateKeyPairRequest();
-
 			createKeyPairRequest.withKeyName("SaurabhKey");
-
 			CreateKeyPairResult createKeyPairResult = ec2.createKeyPair(createKeyPairRequest);
-
 			KeyPair keyPair = new KeyPair();
-
 			keyPair = createKeyPairResult.getKeyPair();
-
 			String privateKey = keyPair.getKeyMaterial();
-
 			PrintWriter pw = new PrintWriter("SaurabhKey.pem");
-
 			pw.write(privateKey);
-
 			pw.close();
 
 			/*********************************************
@@ -227,92 +219,49 @@ public class AwsSample {
 			int maxInstanceCount = 1;
 			RunInstancesRequest rir = new RunInstancesRequest().withImageId(imageId)
 					.withInstanceType(InstanceType.T1Micro).withMinCount(minInstanceCount)
-					.withMaxCount(maxInstanceCount).withSecurityGroups("SaurabhCC")
-					.withKeyName("SaurabhKey");
+					.withMaxCount(maxInstanceCount).withSecurityGroups("SaurabhCC").withKeyName("SaurabhKey");
 
 			RunInstancesResult result = ec2.runInstances(rir);
 
 			// get instanceId from the result
 			List<Instance> resultInstance = result.getReservation().getInstances();
 			String createdInstanceId = null;
-			Instance instance = null;
 			for (Instance ins : resultInstance) {
-				instance = ins;
 				createdInstanceId = ins.getInstanceId();
 				System.out.println("New instance has been created: " + ins.getInstanceId());
 				System.out.println("Private IP: " + ins.getPrivateIpAddress());
-				System.out.println("Current State: " + ins.getState().getName());
+				// System.out.println("Current State: " +
+				// ins.getState().getName());
 
 			}
 
-			boolean ipNotFound=true;
+			boolean status = true;
 
-            List<Instance> resultInstance1 = result.getReservation().getInstances();
+			List<Instance> newResultInstance = result.getReservation().getInstances();
+			for (Instance ins : newResultInstance) {
+				createdInstanceId = ins.getInstanceId();
+				while (status) {
+					reservations.clear();
+					reservations = ec2.describeInstances().getReservations();
+					for (Reservation res : reservations) {
+						instances.clear();
+						instances.addAll(res.getInstances());
+						for (Instance i : instances) {
+							if (i.getInstanceId().equals(ins.getInstanceId())) {
+								if (i.getState().getCode() == 16) {
+									status = false;
+									System.out.println("Public IP: " + i.getPublicIpAddress());
+								} else
+									Thread.sleep(2000);
+							} else
+								continue;
+						}
 
-            String createdInstanceId1 = null;
+					}
 
-            for (Instance ins : resultInstance1){
+				}
+			}
 
-            createdInstanceId = ins.getInstanceId();
-
-            System.out.println("New instance has been created: "+ins.getInstanceId());
-
-            while(ipNotFound)
-
-            {
-
-            //System.out.println("Still IP not found");
-
-            reservations.clear();
-
-            reservations=ec2.describeInstances().getReservations();
-
-            for(Reservation res:reservations)
-
-            {
-
-            instances.clear();
-
-            instances.addAll(res.getInstances());
-
-            for(Instance innerIns:instances)
-
-            {
-
-            if(innerIns.getInstanceId().equals(ins.getInstanceId()))
-
-            {
-
-            if(innerIns.getState().getCode()==16) //till instance doesnt start running
-
-            {
-
-            ipNotFound=false;	           
-
-            System.out.println("New instance public ip: "+innerIns.getPublicIpAddress());
-
-            System.out.println("New instance private ip: "+innerIns.getPrivateIpAddress());
-
-            }
-
-            else
-
-            Thread.sleep(3000);
-
-            }
-
-            else
-
-            continue;
-
-            }
-
-           
-
-            }
-
-            }
-            }
 			List<String> instanceIds = new LinkedList<String>();
 			instanceIds.add(createdInstanceId);
 
